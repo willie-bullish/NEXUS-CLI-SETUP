@@ -1329,12 +1329,11 @@ function get_wallet_address_interactive() {
 # === Check if running as root ===
 function check_root() {
     if [ "$EUID" -eq 0 ]; then
-        echo -e "${RED}⚠️  Warning: Running as root is not recommended for security reasons.${RESET}"
-        echo -e "${YELLOW}Consider running as a regular user with sudo privileges.${RESET}"
-        read -p "Continue anyway? (y/n): " confirm
-        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-            exit 1
-        fi
+        echo -e "${YELLOW}⚠️  Running as root detected.${RESET}"
+        echo -e "${CYAN}📋 This will work but running as a regular user is more secure.${RESET}"
+        echo -e "${GREEN}✅ Continuing with root privileges...${RESET}"
+        # Allow root but warn - don't exit
+        sleep 2
     fi
 }
 
