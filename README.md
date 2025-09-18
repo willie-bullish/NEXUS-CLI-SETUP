@@ -10,8 +10,8 @@
 curl -fsSL https://raw.githubusercontent.com/willie-bullish/NEXUS-CLI-SETUP/master/nexus-cli-setup.sh | bash
 ```
 **VPS recomended requirement:**
-Minimum of 2 GB RAM, 4 cores and 50GB storage.
-Note: This is my opinion about the requirement.
+Minimum of 2 GB RAM, 4 cores and 50GB storage.   
+Note: This is my opinion about the requirement.   
 For more information on VPS requirement, kindly reach out to NEXUS team.
 
 ## ✨ Features
@@ -20,9 +20,9 @@ For more information on VPS requirement, kindly reach out to NEXUS team.
 ✅ **Handles wallet registration** automatically  
 ✅ **Create new nodes** OR use existing Node IDs  
 ✅ **Lightning-fast node management**  
-✅ **Smart log management**
-✅ **Cross-platform compatibility** 
-✅ **Container monitoring & updates**  
+✅ **Smart log management**   
+✅ **Cross-platform compatibility**   
+✅ **Container monitoring & updates**    
 
 ## 🖥️ Supported Platforms
 
