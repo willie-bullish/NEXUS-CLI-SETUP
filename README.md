@@ -82,11 +82,6 @@ If you encounter issues:
 3. On Ubuntu: Ensure you have sudo privileges
 4. Check Docker Desktop is allowed through firewall
 
-## 📊 Repository Stats
-
-![GitHub stars](https://img.shields.io/github/stars/willie-bullish/NEXUS-CLI-SETUP?style=social)
-![GitHub forks](https://img.shields.io/github/forks/willie-bullish/NEXUS-CLI-SETUP?style=social)
-
 ---
 
 **Made with ❤️ by Willie_Bullish for the Nexus community**
