@@ -558,6 +558,9 @@ function run_container_existing_node() {
         
         # Log the successful startup
         log_node_clean "$log_file" "Node $existing_node_id started successfully with wallet $wallet_address"
+        
+        # Start background log trimming daemon (if not already running)
+        start_log_trimming_daemon
     else
         echo -e "${RED}❌ Node failed to start${RESET}"
         echo -e "${YELLOW}📋 Container logs (last 30 lines):${RESET}"
@@ -675,6 +678,9 @@ function run_container() {
         if [ -n "$node_id" ]; then
             echo -e "${GREEN}📊 Node ID: $node_id${RESET}"
             log_node_clean "$log_file" "Node $node_id started successfully with wallet $wallet_address"
+            
+            # Start background log trimming daemon (if not already running)
+            start_log_trimming_daemon
         else
             echo -e "${YELLOW}⚠️  Node is running but ID not yet detected${RESET}"
             log_node_clean "$log_file" "Node started successfully with wallet $wallet_address"
@@ -859,10 +865,26 @@ function auto_trim_all_logs() {
             fi
         done
         
-        # Also trim auto-restart log
-        if [ -f "${LOG_DIR}/auto-restart.log" ]; then
-            trim_log_file "${LOG_DIR}/auto-restart.log"
-        fi
+        # Don't trim auto-restart log - let it grow
+    fi
+}
+
+# === Start Background Log Trimming ===
+function start_log_trimming_daemon() {
+    # Only start if not already running
+    if ! pgrep -f "nexus-log-trimmer" >/dev/null 2>&1; then
+        # Start background process that trims logs every 5 minutes
+        (
+            while true; do
+                sleep 300  # 5 minutes
+                auto_trim_all_logs
+                echo "$(date): Auto-trimmed node logs to 2 lines" >> "${LOG_DIR}/auto-restart.log"
+            done
+        ) &
+        
+        # Mark the process for identification
+        echo $! > "${LOG_DIR}/.log-trimmer-pid"
+        echo -e "${CYAN}📋 Background log trimming started (every 5 minutes)${RESET}"
     fi
 }
 
@@ -1234,11 +1256,8 @@ function log_node_clean() {
     local log_file="$1"
     echo "$(date): $2" >> "$log_file"
     
-    # Immediately trim node logs to keep only last 2 lines
-    # (Only for node logs, not auto-restart logs)
-    if [[ "$log_file" =~ nexus-[0-9]+\.log$ ]]; then
-        trim_log_file "$log_file"
-    fi
+    # No immediate trimming - let logs accumulate
+    # Trimming will happen every 5 minutes via background process
 }
 
 # === Auto Restart Function (for cron) ===
