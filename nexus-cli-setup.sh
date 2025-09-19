@@ -1377,18 +1377,7 @@ while true; do
     echo -e "${GREEN} ${RESET} 🚪 ~CTRL + C for Exit~"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     
-    # Clear any buffered input and ensure clean prompt
-    while read -r -t 0; do read -r; done 2>/dev/null || true
-    
-    choice=""
-    while [ -z "$choice" ]; do
-        read -rp "Choose an option (1–10): " choice
-        # Validate input immediately
-        if [[ ! "$choice" =~ ^[1-9]$|^10$ ]]; then
-            echo -e "${RED}❌ Invalid option. Please enter a number from 1 to 10.${RESET}"
-            choice=""
-        fi
-    done
+    read -rp "Choose an option (1–10): " choice
     case $choice in
         1)
             check_docker
