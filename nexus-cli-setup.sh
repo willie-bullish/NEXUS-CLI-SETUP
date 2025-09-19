@@ -1378,6 +1378,10 @@ while true; do
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     
     read -rp "Choose an option (1–10): " choice
+    
+    # Debug: Show what was actually received
+    echo "DEBUG: Received input: '$choice'" >&2
+    
     case $choice in
         1)
             check_docker
@@ -1440,6 +1444,10 @@ while true; do
             remove_auto_restart
             read -p "Press enter..."
             ;;
-        *) echo "Invalid option."; read -p "Press enter..." ;;
+        *) 
+            echo "DEBUG: Invalid option received: '$choice'" >&2
+            echo "Invalid option. Please enter a number from 1 to 10."
+            read -p "Press enter..." 
+            ;;
     esac
 done
