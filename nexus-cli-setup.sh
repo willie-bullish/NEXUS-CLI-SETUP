@@ -7,7 +7,8 @@ if [ ! -t 0 ]; then
     SCRIPT_PATH="/tmp/nexus-cli-setup-$$.sh"
     cat > "$SCRIPT_PATH"
     chmod +x "$SCRIPT_PATH"
-    exec "$SCRIPT_PATH" "$@"
+    # Re-execute with proper terminal input/output
+    exec bash "$SCRIPT_PATH" "$@" < /dev/tty > /dev/tty 2>&1
     exit 0
 fi
 
