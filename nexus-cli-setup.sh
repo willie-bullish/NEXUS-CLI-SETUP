@@ -1,8 +1,15 @@
 #!/bin/bash
 set -e
 
-# Ensure script runs in interactive mode when piped from curl
-exec < /dev/tty
+# Handle curl pipe execution - download and run locally
+if [ ! -t 0 ]; then
+    # We're being piped from curl, save to temp file and re-execute
+    SCRIPT_PATH="/tmp/nexus-cli-setup-$$.sh"
+    cat > "$SCRIPT_PATH"
+    chmod +x "$SCRIPT_PATH"
+    exec "$SCRIPT_PATH" "$@"
+    exit 0
+fi
 
 # === Basic Configuration ===
 BASE_CONTAINER_NAME="nexus-node"
