@@ -15,6 +15,7 @@ fi
 # === Basic Configuration ===
 BASE_CONTAINER_NAME="nexus-node"
 IMAGE_NAME="nexus-node:latest"
+IMAGE_NAME_EXISTING="nexus-node-existing:latest"
 
 # Cross-platform home directory detection
 if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
@@ -371,7 +372,7 @@ fi
 tail -f /root/nexus.log
 EOF
 
-    docker build -t "$IMAGE_NAME" .
+    docker build -t "$IMAGE_NAME_EXISTING" .
     cd - > /dev/null
     rm -rf "$WORKDIR"
 }
@@ -530,7 +531,7 @@ function run_container_existing_node() {
         -v "$log_file":/root/nexus.log \
         -e WALLET_ADDRESS="$wallet_address" \
         -e EXISTING_NODE_ID="$existing_node_id" \
-        "$IMAGE_NAME"
+        "$IMAGE_NAME_EXISTING"
 
     # Wait for initial setup
     echo -e "${YELLOW}⏳ Setting up node with existing ID (this may take 30-60 seconds)...${RESET}"
