@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Ensure script runs in interactive mode when piped from curl
+exec < /dev/tty
+
 # === Basic Configuration ===
 BASE_CONTAINER_NAME="nexus-node"
 IMAGE_NAME="nexus-node:latest"
