@@ -873,7 +873,7 @@ function view_logs() {
                 echo "--------------------------------------------------------------"
                 
                         # Test fallback method first - use Docker container logs only
-                        docker logs --tail 20 "$container" 2>&1
+                        docker logs --tail 50 "$container" 2>&1
                 
                 echo "--------------------------------------------------------------"
                 sleep 3
