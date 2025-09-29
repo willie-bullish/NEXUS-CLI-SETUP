@@ -348,17 +348,27 @@ screen -S nexus -X quit >/dev/null 2>&1 || true
 
 # Start the node with existing ID
 echo "🎯 Starting Nexus node with existing ID: \$EXISTING_NODE_ID"
-echo "⏳ Initializing node (this may take 15-30 seconds)..."
 
-# Start the Nexus node directly (not in screen session) so logs are visible
-echo "✅ Node is starting..."
-echo "📊 Node ID: \$EXISTING_NODE_ID"
-echo "💼 Wallet: \$WALLET_ADDRESS"
-echo "📋 Starting Nexus node (logs will be visible below)..."
-echo ""
+# Start the Nexus node in screen session to keep container running
+screen -dmS nexus bash -c "nexus-cli start --node-id \$EXISTING_NODE_ID" 2>/dev/null
 
-# Run the Nexus CLI directly to show logs in real-time
-nexus-cli start --node-id \$EXISTING_NODE_ID
+# Wait for node to start
+sleep 5
+
+# Check if screen session is running
+if screen -list | grep -q "nexus"; then
+    echo "✅ Node is running in the background"
+    echo "📊 Node ID: \$EXISTING_NODE_ID"
+    echo "💼 Wallet: \$WALLET_ADDRESS"
+else
+    echo "❌ Failed to start the node"
+    exit 1
+fi
+
+# Keep container running
+while true; do
+    sleep 60
+done
 EOF
 
     docker build --no-cache -t "$IMAGE_NAME_EXISTING" .
@@ -460,19 +470,29 @@ fi
 
 echo "✅ Node registered successfully with ID: \$NODE_ID"
 
-# Start the node with proper logging
+# Start the node
 echo "🎯 Starting Nexus node with ID: \$NODE_ID"
-echo "⏳ Initializing node (this may take 15-30 seconds)..."
 
-# Start the Nexus node directly (not in screen session) so logs are visible
-echo "✅ Node is starting..."
-echo "📊 Node ID: \$NODE_ID"
-echo "💼 Wallet: \$WALLET_ADDRESS"
-echo "📋 Starting Nexus node (logs will be visible below)..."
-echo ""
+# Start the Nexus node in screen session to keep container running
+screen -dmS nexus bash -c "nexus-cli start" 2>/dev/null
 
-# Run the Nexus CLI directly to show logs in real-time
-nexus-cli start
+# Wait for node to start
+sleep 5
+
+# Check if screen session is running
+if screen -list | grep -q "nexus"; then
+    echo "✅ Node is running in the background"
+    echo "📊 Node ID: \$NODE_ID"
+    echo "💼 Wallet: \$WALLET_ADDRESS"
+else
+    echo "❌ Failed to start the node"
+    exit 1
+fi
+
+# Keep container running
+while true; do
+    sleep 60
+done
 EOF
 
     docker build --no-cache -t "$IMAGE_NAME" .
@@ -830,8 +850,15 @@ function view_logs() {
                 echo -e "${CYAN}Press Enter to stop viewing logs and return to menu${RESET}"
                 echo "--------------------------------------------------------------"
                 
-                # Show the actual Nexus node logs (now directly available)
-                docker logs --tail 20 "$container" 2>&1
+                # Get the actual Nexus node logs from the screen session
+                # Try to get logs from screen session first, fallback to container logs
+                local screen_logs=$(docker exec "$container" screen -S nexus -X hardcopy /tmp/nexus_logs.txt 2>/dev/null && docker exec "$container" cat /tmp/nexus_logs.txt 2>/dev/null)
+                if [ -n "$screen_logs" ]; then
+                    echo "$screen_logs"
+                else
+                    # Fallback to container logs
+                    docker logs --tail 20 "$container" 2>&1
+                fi
                 
                 echo "--------------------------------------------------------------"
                 sleep 3
