@@ -875,40 +875,17 @@ function view_logs() {
         echo -e "${CYAN}Press Enter to stop viewing logs and return to menu${RESET}"
         echo "--------------------------------------------------------------"
         
-        # Start background process to show logs
-        (
-            while true; do
-                # Clear screen and show fresh logs
+                # Attach directly to the screen session
+                echo -e "${YELLOW}Attaching to live Nexus dashboard for container: $selected (Node ID: $node_id)${RESET}"
+                echo -e "${CYAN}Press Ctrl+A then D to detach and return to menu${RESET}"
+                echo "--------------------------------------------------------------"
+                sleep 2
+                
+                # Attach to the screen session directly
+                docker exec -it "$container" screen -r nexus
+                
+                # Clear screen after detaching
                 clear
-                echo -e "${YELLOW}Real-time logs for container: $selected (Node ID: $node_id)${RESET}"
-                echo -e "${CYAN}Press Enter to stop viewing logs and return to menu${RESET}"
-                echo "--------------------------------------------------------------"
-                
-                        # Get live screen session content directly
-                        docker exec "$container" screen -S nexus -X hardcopy /tmp/nexus_dashboard.txt 2>/dev/null
-                        if docker exec "$container" test -f /tmp/nexus_dashboard.txt 2>/dev/null; then
-                            # Show live screen content (actual running node dashboard)
-                            docker exec "$container" cat /tmp/nexus_dashboard.txt 2>/dev/null | tr -d '\0'
-                        else
-                            # Fallback to container logs if screen not available
-                            docker logs --tail 20 "$container" 2>&1
-                        fi
-                
-                echo "--------------------------------------------------------------"
-                sleep 3
-            done
-        ) &
-        local log_pid=$!
-        
-        # Wait for user to press Enter
-        read -p ""
-        
-        # Kill the background log process
-        kill $log_pid 2>/dev/null || true
-        wait $log_pid 2>/dev/null || true
-        
-        # Clear screen after exiting
-        clear
         
         echo "--------------------------------------------------------------"
     fi
