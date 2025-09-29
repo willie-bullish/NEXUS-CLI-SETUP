@@ -302,6 +302,9 @@ FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH="/root/.nexus/bin:\$PATH"
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV TERM=xterm-256color
 
 RUN apt-get update && apt-get install -y \\
     curl \\
@@ -391,6 +394,9 @@ FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH="/root/.nexus/bin:\$PATH"
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV TERM=xterm-256color
 
 RUN apt-get update && apt-get install -y \\
     curl \\
@@ -529,6 +535,9 @@ function run_container_existing_node() {
         --cpus=4 \
         -e WALLET_ADDRESS="$wallet_address" \
         -e EXISTING_NODE_ID="$existing_node_id" \
+        -e LANG=C.UTF-8 \
+        -e LC_ALL=C.UTF-8 \
+        -e TERM=xterm-256color \
         "$IMAGE_NAME_EXISTING"
 
     # Wait for initial setup
@@ -578,6 +587,9 @@ function run_container() {
     docker run -d --name "$container_name" \
         --cpus=4 \
         -e WALLET_ADDRESS="$wallet_address" \
+        -e LANG=C.UTF-8 \
+        -e LC_ALL=C.UTF-8 \
+        -e TERM=xterm-256color \
         "$IMAGE_NAME"
 
     # Wait for initial setup and get the node ID from logs
@@ -1053,6 +1065,9 @@ function update_all_nodes() {
         docker run -d --name "$container" \
             --cpus=4 \
             -e WALLET_ADDRESS="$wallet_address" \
+            -e LANG=C.UTF-8 \
+            -e LC_ALL=C.UTF-8 \
+            -e TERM=xterm-256color \
             "$IMAGE_NAME"
         
         # Wait a moment and check if it's running
@@ -1127,7 +1142,7 @@ function auto_restart_nodes() {
         
         # Recreate with same name and fresh logs
         if [ -n "$image_name" ] && [ "$image_name" != "null" ]; then
-            docker run -d --name "$container" --cpus=4 $env_vars "$image_name" 2>/dev/null || true
+            docker run -d --name "$container" --cpus=4 $env_vars -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -e TERM=xterm-256color "$image_name" 2>/dev/null || true
         else
             # Fallback: just start the existing container (if it still exists)
             docker start "$container" 2>/dev/null || true
