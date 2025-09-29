@@ -872,15 +872,8 @@ function view_logs() {
                 echo -e "${CYAN}Press Enter to stop viewing logs and return to menu${RESET}"
                 echo "--------------------------------------------------------------"
                 
-                # Get the actual Nexus node logs from the screen session
-                # Try to get logs from screen session first, fallback to container logs
-                local screen_logs=$(docker exec "$container" screen -S nexus -X hardcopy /tmp/nexus_logs.txt 2>/dev/null && docker exec "$container" cat /tmp/nexus_logs.txt 2>/dev/null)
-                if [ -n "$screen_logs" ]; then
-                    echo "$screen_logs"
-                else
-                    # Fallback to container logs
-                    docker logs --tail 20 "$container" 2>&1
-                fi
+                        # Test fallback method first - use Docker container logs only
+                        docker logs --tail 20 "$container" 2>&1
                 
                 echo "--------------------------------------------------------------"
                 sleep 3
