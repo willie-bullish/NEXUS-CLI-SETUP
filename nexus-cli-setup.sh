@@ -872,8 +872,16 @@ function view_logs() {
                 echo -e "${CYAN}Press Enter to stop viewing logs and return to menu${RESET}"
                 echo "--------------------------------------------------------------"
                 
-                        # Test fallback method first - use Docker container logs only
-                        docker logs --tail 20 "$container" 2>&1
+                        # Use Docker container logs but get live screen session content
+                        # Get the current screen session content (live node logs)
+                        docker exec "$container" screen -S nexus -X hardcopy /tmp/nexus_live.txt 2>/dev/null
+                        if docker exec "$container" test -f /tmp/nexus_live.txt 2>/dev/null; then
+                            # Show live screen content (actual running node logs)
+                            docker exec "$container" cat /tmp/nexus_live.txt 2>/dev/null | tr -d '\0'
+                        else
+                            # Fallback to container logs if screen not available
+                            docker logs --tail 20 "$container" 2>&1
+                        fi
                 
                 echo "--------------------------------------------------------------"
                 sleep 3
