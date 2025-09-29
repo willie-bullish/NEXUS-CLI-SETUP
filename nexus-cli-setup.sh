@@ -20,13 +20,11 @@ IMAGE_NAME_EXISTING="nexus-node-existing:latest"
 # Cross-platform home directory detection
 if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
     # Windows environment - use proper Windows home path
-    LOG_DIR="$HOME/nexus_logs"
+    WALLET_SAVE_FILE="$HOME/.saved_wallet"
 else
     # Linux environment
-    LOG_DIR="/home/$(whoami)/nexus_logs"
+    WALLET_SAVE_FILE="/home/$(whoami)/.saved_wallet"
 fi
-
-WALLET_SAVE_FILE="${LOG_DIR}/.saved_wallet"  # File to store the last used wallet address
 
 # === Terminal Colors ===
 GREEN='\033[0;32m'
@@ -509,18 +507,9 @@ function run_container_existing_node() {
     local existing_node_id=$2
     local timestamp=$(date +%s)
     local container_name="${BASE_CONTAINER_NAME}-${timestamp}"
-    local log_file="${LOG_DIR}/nexus-${timestamp}.log"
 
-    # Create log directory with proper permissions
-    mkdir -p "$LOG_DIR"
-    chmod 755 "$LOG_DIR"
-    
     # Remove existing container if it exists
     docker rm -f "$container_name" 2>/dev/null || true
-    
-    # Create log file with proper permissions
-    touch "$log_file"
-    chmod 644 "$log_file"
 
     echo -e "${CYAN}🚀 Starting Nexus node with existing Node ID: $existing_node_id${RESET}"
     echo -e "${CYAN}💼 Wallet: $wallet_address${RESET}"
@@ -528,7 +517,7 @@ function run_container_existing_node() {
 
     # Run container with wallet address and existing node ID
     docker run -d --name "$container_name" \
-        -v "$log_file":/root/nexus.log \
+        --cpus=4 \
         -e WALLET_ADDRESS="$wallet_address" \
         -e EXISTING_NODE_ID="$existing_node_id" \
         "$IMAGE_NAME_EXISTING"
@@ -537,30 +526,12 @@ function run_container_existing_node() {
     echo -e "${YELLOW}⏳ Setting up node with existing ID (this may take 30-60 seconds)...${RESET}"
     echo -e "${CYAN}📋 Progress: Container started, initializing with Node ID $existing_node_id...${RESET}"
     
-    # Set up log cleanup task (platform-specific)
-    check_cron
-    if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
-        # Windows - create a simple cleanup script (no cron needed)
-        echo -e "${CYAN}📋 Log cleanup will be handled manually on Windows${RESET}"
-    else
-        # Linux - use cron
-        echo "0 0 * * * rm -f $log_file" | sudo tee "/etc/cron.d/nexus-log-cleanup-${timestamp}" > /dev/null
-        sudo chmod 644 "/etc/cron.d/nexus-log-cleanup-${timestamp}"
-    fi
-    
     # Wait and check if container is running
     sleep 15
     if docker inspect -f '{{.State.Status}}' "$container_name" 2>/dev/null | grep -q "running"; then
         echo -e "${GREEN}✅ Node started successfully with existing ID!${RESET}"
         echo -e "${GREEN}📊 Node ID: $existing_node_id${RESET}"
         echo -e "${CYAN}💼 Wallet: $wallet_address${RESET}"
-        echo -e "${CYAN}📁 Log file: $log_file${RESET}"
-        
-        # Log the successful startup
-        log_node_clean "$log_file" "Node $existing_node_id started successfully with wallet $wallet_address"
-        
-        # Start background log trimming daemon (if not already running)
-        start_log_trimming_daemon
     else
         echo -e "${RED}❌ Node failed to start${RESET}"
         echo -e "${YELLOW}📋 Container logs (last 30 lines):${RESET}"
@@ -587,25 +558,16 @@ function run_container() {
     local wallet_address=$1
     local timestamp=$(date +%s)
     local container_name="${BASE_CONTAINER_NAME}-${timestamp}"
-    local log_file="${LOG_DIR}/nexus-${timestamp}.log"
 
-    # Create log directory with proper permissions
-    mkdir -p "$LOG_DIR"
-    chmod 755 "$LOG_DIR"
-    
     # Remove existing container if it exists
     docker rm -f "$container_name" 2>/dev/null || true
-    
-    # Create log file with proper permissions
-    touch "$log_file"
-    chmod 644 "$log_file"
 
     echo -e "${CYAN}🚀 Starting new Nexus node with wallet: $wallet_address${RESET}"
     echo -e "${CYAN}📋 Container name: $container_name${RESET}"
 
     # Run container with wallet address
     docker run -d --name "$container_name" \
-        -v "$log_file":/root/nexus.log \
+        --cpus=4 \
         -e WALLET_ADDRESS="$wallet_address" \
         "$IMAGE_NAME"
 
@@ -660,33 +622,16 @@ function run_container() {
             attempts=$((attempts + 1))
         fi
     done
-
-    # Set up log cleanup task (platform-specific)
-    check_cron
-    if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
-        # Windows - create a simple cleanup script (no cron needed)
-        echo -e "${CYAN}📋 Log cleanup will be handled manually on Windows${RESET}"
-    else
-        # Linux - use cron
-        echo "0 0 * * * rm -f $log_file" | sudo tee "/etc/cron.d/nexus-log-cleanup-${timestamp}" > /dev/null
-        sudo chmod 644 "/etc/cron.d/nexus-log-cleanup-${timestamp}"
-    fi
     
     # Check if container is still running
     if docker inspect -f '{{.State.Status}}' "$container_name" 2>/dev/null | grep -q "running"; then
         echo -e "${GREEN}✅ Node started successfully!${RESET}"
         if [ -n "$node_id" ]; then
             echo -e "${GREEN}📊 Node ID: $node_id${RESET}"
-            log_node_clean "$log_file" "Node $node_id started successfully with wallet $wallet_address"
-            
-            # Start background log trimming daemon (if not already running)
-            start_log_trimming_daemon
         else
             echo -e "${YELLOW}⚠️  Node is running but ID not yet detected${RESET}"
-            log_node_clean "$log_file" "Node started successfully with wallet $wallet_address"
         fi
         echo -e "${CYAN}💼 Wallet: $wallet_address${RESET}"
-        echo -e "${CYAN}📁 Log file: $log_file${RESET}"
     else
         echo -e "${RED}❌ Node failed to start${RESET}"
         echo -e "${YELLOW}📋 Container logs (last 30 lines):${RESET}"
@@ -712,20 +657,12 @@ function run_container() {
 function uninstall_node_by_timestamp() {
     local timestamp=$1
     local cname="${BASE_CONTAINER_NAME}-${timestamp}"
-    local log_file="${LOG_DIR}/nexus-${timestamp}.log"
     
     # Get node info before removal
     local node_info=$(get_node_info "$cname")
     local node_id=${node_info%%\|*}
     
-    # Log clean removal message before removing log file
-    if [ -f "$log_file" ]; then
-        log_node_clean "$log_file" "Container $timestamp (Node ID: $node_id) is being removed"
-    fi
-    
     docker rm -f "$cname" 2>/dev/null || true
-    rm -f "$log_file"
-    sudo rm -f "/etc/cron.d/nexus-log-cleanup-${timestamp}"
     echo -e "${YELLOW}Container $timestamp (Node ID: $node_id) has been removed.${RESET}"
 }
 
@@ -733,16 +670,8 @@ function uninstall_node_by_timestamp() {
 function uninstall_node() {
     local node_id=$1
     local cname="${BASE_CONTAINER_NAME}-${node_id}"
-    local log_file="${LOG_DIR}/nexus-${node_id}.log"
-    
-    # Log clean removal message before removing log file
-    if [ -f "$log_file" ]; then
-        log_node_clean "$log_file" "Node $node_id is being removed"
-    fi
     
     docker rm -f "$cname" 2>/dev/null || true
-    rm -f "$log_file"
-    sudo rm -f "/etc/cron.d/nexus-log-cleanup-${node_id}"
     echo -e "${YELLOW}Node $node_id has been removed.${RESET}"
 }
 
@@ -844,49 +773,6 @@ function list_nodes() {
     read -p "Press enter to return to menu..."
 }
 
-# === Trim Log File to Last 2 Lines ===
-function trim_log_file() {
-    local log_file="$1"
-    
-    if [ -f "$log_file" ]; then
-        # Get the last 2 lines and overwrite the file
-        local temp_file="${log_file}.tmp"
-        tail -n 2 "$log_file" > "$temp_file" 2>/dev/null
-        mv "$temp_file" "$log_file" 2>/dev/null || rm -f "$temp_file"
-    fi
-}
-
-# === Auto-Trim All Log Files ===
-function auto_trim_all_logs() {
-    if [ -d "$LOG_DIR" ]; then
-        for log_file in "$LOG_DIR"/nexus-*.log; do
-            if [ -f "$log_file" ]; then
-                trim_log_file "$log_file"
-            fi
-        done
-        
-        # Don't trim auto-restart log - let it grow
-    fi
-}
-
-# === Start Background Log Trimming ===
-function start_log_trimming_daemon() {
-    # Only start if not already running
-    if ! pgrep -f "nexus-log-trimmer" >/dev/null 2>&1; then
-        # Start background process that trims logs every 5 minutes
-        (
-            while true; do
-                sleep 300  # 5 minutes
-                auto_trim_all_logs
-                echo "$(date): Auto-trimmed node logs to 2 lines" >> "${LOG_DIR}/auto-restart.log"
-            done
-        ) &
-        
-        # Mark the process for identification
-        echo $! > "${LOG_DIR}/.log-trimmer-pid"
-        echo -e "${CYAN}📋 Background log trimming started (every 5 minutes)${RESET}"
-    fi
-}
 
 # === View Node Logs ===
 function view_logs() {
@@ -896,37 +782,37 @@ function view_logs() {
         read -p "Press enter..."
         return
     fi
-    echo "Select a node to view logs:"
+    echo "Select a node to view real-time logs:"
     for i in "${!all_nodes[@]}"; do
         local timestamp=${all_nodes[$i]}
-        # Fast display - skip Docker API calls for listing
-        echo "$((i+1)). Container: $timestamp"
+        local container="${BASE_CONTAINER_NAME}-${timestamp}"
+        local status="Unknown"
+        if docker inspect "$container" &>/dev/null; then
+            status=$(docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null)
+        fi
+        echo "$((i+1)). Container: $timestamp (Status: $status)"
     done
     read -rp "Number: " choice
     if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice > 0 && choice <= ${#all_nodes[@]} )); then
         local selected=${all_nodes[$((choice-1))]}
-        local log_file="${LOG_DIR}/nexus-${selected}.log"
         local container="${BASE_CONTAINER_NAME}-${selected}"
         local node_info=$(get_node_info "$container")
         local node_id=${node_info%%\|*}
         
-        echo -e "${YELLOW}Logs for container: $selected (Node ID: $node_id)${RESET}"
+        echo -e "${YELLOW}Real-time logs for container: $selected (Node ID: $node_id)${RESET}"
+        echo -e "${CYAN}Press Ctrl+C to stop viewing logs and return to menu${RESET}"
         echo "--------------------------------------------------------------"
-        if [ -f "$log_file" ]; then
-            # Check if log file has content
-            if [ -s "$log_file" ]; then
-                echo -e "${CYAN}📁 Log file size: $(stat -f%z "$log_file" 2>/dev/null || stat -c%s "$log_file" 2>/dev/null || echo "unknown") bytes${RESET}"
-                echo -e "${CYAN}📋 Last 10 lines:${RESET}"
-                tail -n 10 "$log_file" 2>/dev/null | sed 's/^/  /' || echo "  Error reading log file"
-            else
-                echo "  Log file exists but is empty"
-                echo -e "${CYAN}💡 This might mean:${RESET}"
-                echo -e "${CYAN}   • Node is still starting up${RESET}"
-                echo -e "${CYAN}   • Logs are being written to container instead of file${RESET}"
-                echo -e "${CYAN}   • Check container logs with: docker logs $container${RESET}"
-            fi
+        
+        # Check if container is running
+        if docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null | grep -q "running"; then
+            echo -e "${GREEN}📋 Showing live logs from running container...${RESET}"
+            echo ""
+            # Show real-time logs
+            docker logs -f "$container" 2>&1
         else
-            echo "  No log file found at: $log_file"
+            echo -e "${RED}❌ Container is not running${RESET}"
+            echo -e "${CYAN}📋 Last 20 lines from container logs:${RESET}"
+            docker logs "$container" 2>&1 | tail -20 | sed 's/^/  /'
         fi
         echo "--------------------------------------------------------------"
     fi
@@ -1000,14 +886,10 @@ function restart_all_nodes() {
     
     for timestamp in "${all_nodes[@]}"; do
         local container="${BASE_CONTAINER_NAME}-${timestamp}"
-        local log_file="${LOG_DIR}/nexus-${timestamp}.log"
         local node_info=$(get_node_info "$container")
         local node_id=${node_info%%\|*}
         
         echo -e "${CYAN}Restarting container: $timestamp (Node ID: $node_id)${RESET}"
-        
-        # Log clean restart message
-        log_node_clean "$log_file" "Manual restart initiated for container: $timestamp (Node ID: $node_id)"
         
         # Stop the container gracefully
         docker stop "$container" 2>/dev/null || true
@@ -1016,7 +898,6 @@ function restart_all_nodes() {
         # Start the container again
         docker start "$container" 2>/dev/null || {
             echo -e "${RED}Failed to restart container $timestamp${RESET}"
-            log_node_clean "$log_file" "Failed to restart container $timestamp"
             continue
         }
         
@@ -1024,10 +905,8 @@ function restart_all_nodes() {
         sleep 3
         if docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null | grep -q "running"; then
             echo -e "${GREEN}✅ Container $timestamp restarted successfully${RESET}"
-            log_node_clean "$log_file" "Container $timestamp restarted successfully"
         else
             echo -e "${RED}❌ Container $timestamp failed to start${RESET}"
-            log_node_clean "$log_file" "Container $timestamp failed to start after restart"
         fi
     done
     
@@ -1035,97 +914,6 @@ function restart_all_nodes() {
     read -p "Press enter..."
 }
 
-# === Clear All Logs ===
-function clear_all_logs() {
-    echo -e "${YELLOW}⚠️  This will delete ALL log files including:${RESET}"
-    echo -e "${CYAN}   • All individual node logs (nexus-*.log)${RESET}"
-    echo -e "${CYAN}   • Auto-restart log (auto-restart.log)${RESET}"
-    echo -e "${CYAN}   • Log directory: $LOG_DIR${RESET}"
-    echo ""
-    
-    # Show current log files if any exist
-    if [ -d "$LOG_DIR" ] && [ "$(ls -A "$LOG_DIR" 2>/dev/null)" ]; then
-        echo -e "${CYAN}📁 Current log files:${RESET}"
-        # List log files without using pipe characters
-        if [ -d "$LOG_DIR" ]; then
-            local found_logs=false
-            for log_file in "$LOG_DIR"/*.log; do
-                if [ -f "$log_file" ]; then
-                    local filename=$(basename "$log_file")
-                    local filesize=$(stat -f%z "$log_file" 2>/dev/null || stat -c%s "$log_file" 2>/dev/null || echo "unknown")
-                    echo "   • $filename ($filesize bytes)"
-                    found_logs=true
-                fi
-            done
-            if [ "$found_logs" = false ]; then
-                echo "   • No .log files found"
-            fi
-        else
-            echo "   • No .log files found"
-        fi
-        echo ""
-    else
-        echo -e "${GREEN}📁 No log files found to delete.${RESET}"
-        read -p "Press enter..."
-        return
-    fi
-    
-    echo -e "${RED}⚠️  WARNING: This action cannot be undone!${RESET}"
-    echo "Are you sure you want to delete ALL logs? (y/n)"
-    read -rp "Confirm: " confirm
-    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-        echo "Cancelled."
-        read -p "Press enter..."
-        return
-    fi
-    
-    echo -e "${YELLOW}🗑️  Clearing all logs...${RESET}"
-    
-    # Count files before deletion for reporting
-    local deleted_count=0
-    
-    # Delete all log files in the log directory
-    if [ -d "$LOG_DIR" ]; then
-        # Count existing log files
-        deleted_count=$(find "$LOG_DIR" -name "*.log" -type f 2>/dev/null | wc -l)
-        
-        # Delete individual node logs
-        find "$LOG_DIR" -name "nexus-*.log" -type f -delete 2>/dev/null || true
-        
-        # Delete auto-restart log
-        rm -f "${LOG_DIR}/auto-restart.log" 2>/dev/null || true
-        
-        # Remove empty log directory if it exists and is empty
-        if [ -d "$LOG_DIR" ] && [ ! "$(ls -A "$LOG_DIR" 2>/dev/null)" ]; then
-            rmdir "$LOG_DIR" 2>/dev/null || true
-            echo -e "${GREEN}✅ Log directory removed (was empty)${RESET}"
-        fi
-    fi
-    
-    # Also clear any remaining log files that might be in use by containers
-    echo -e "${CYAN}🔄 Checking for logs in use by containers...${RESET}"
-    local all_nodes=($(get_all_nodes))
-    for timestamp in "${all_nodes[@]}"; do
-        local container="${BASE_CONTAINER_NAME}-${timestamp}"
-        local log_file="${LOG_DIR}/nexus-${timestamp}.log"
-        
-        # If container is running, we need to recreate the log file
-        if docker inspect "$container" &>/dev/null && docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null | grep -q "running"; then
-            # Create empty log file for running container
-            mkdir -p "$LOG_DIR"
-            touch "$log_file"
-            chmod 644 "$log_file"
-            echo -e "${CYAN}   • Recreated log file for running container: $timestamp${RESET}"
-        fi
-    done
-    
-    echo -e "${GREEN}🎉 Log cleanup completed!${RESET}"
-    if [ "$deleted_count" -gt 0 ]; then
-        echo -e "${GREEN}✅ Deleted $deleted_count log files${RESET}"
-    fi
-    echo -e "${CYAN}📋 All logs have been cleared${RESET}"
-    read -p "Press enter..."
-}
 
 # === Update All Nodes ===
 function update_all_nodes() {
@@ -1148,18 +936,14 @@ function update_all_nodes() {
     
     echo -e "${YELLOW}🔄 Starting update process for all nodes...${RESET}"
     
-    # Log the update start
-    log_clean "Update process started for ${#all_nodes[@]} nodes"
     
     # Stop all running nodes first
     echo -e "${CYAN}Stopping all nodes...${RESET}"
     for timestamp in "${all_nodes[@]}"; do
         local container="${BASE_CONTAINER_NAME}-${timestamp}"
-        local log_file="${LOG_DIR}/nexus-${timestamp}.log"
         local node_info=$(get_node_info "$container")
         local node_id=${node_info%%\|*}
         echo -e "${CYAN}Stopping container: $timestamp (Node ID: $node_id)${RESET}"
-        log_node_clean "$log_file" "Container stopped for update process"
         docker stop "$container" 2>/dev/null || true
     done
     
@@ -1173,7 +957,6 @@ function update_all_nodes() {
     echo -e "${CYAN}🚀 Starting all nodes with updated image...${RESET}"
     for timestamp in "${all_nodes[@]}"; do
         local container="${BASE_CONTAINER_NAME}-${timestamp}"
-        local log_file="${LOG_DIR}/nexus-${timestamp}.log"
         
         # Get wallet address from the old container before removing it
         # Get wallet address without using pipe characters
@@ -1191,12 +974,9 @@ function update_all_nodes() {
         # Remove old container and create new one
         docker rm -f "$container" 2>/dev/null || true
         
-        # Log clean update message
-        log_node_clean "$log_file" "Container updated to latest Nexus CLI version"
-        
         # Run container with updated image and same wallet address
         docker run -d --name "$container" \
-            -v "$log_file":/root/nexus.log \
+            --cpus=4 \
             -e WALLET_ADDRESS="$wallet_address" \
             "$IMAGE_NAME"
         
@@ -1204,15 +984,11 @@ function update_all_nodes() {
         sleep 5
         if docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null | grep -q "running"; then
             echo -e "${GREEN}✅ Container $timestamp updated and started successfully${RESET}"
-            log_node_clean "$log_file" "Container $timestamp updated and started successfully"
         else
             echo -e "${RED}❌ Container $timestamp failed to start after update${RESET}"
-            log_node_clean "$log_file" "Container $timestamp failed to start after update"
         fi
     done
     
-    # Log the update completion
-    log_clean "Update process completed for ${#all_nodes[@]} nodes"
     
     echo -e "${GREEN}🎉 All nodes update completed!${RESET}"
     echo -e "${CYAN}📋 All nodes have been updated to the latest Nexus CLI version${RESET}"
@@ -1230,8 +1006,6 @@ function setup_auto_restart() {
     # Add new cron job
     (sudo crontab -l 2>/dev/null; echo "$cron_job") | sudo crontab - 2>/dev/null
     
-    # Log clean setup message
-    log_clean "Auto-restart cron job setup completed - scheduled every 2 hours"
     
     echo -e "${GREEN}✅ Auto-restart scheduled every 2 hours (12am, 2am, 4am, 6am, 8am, 10am, 12pm, 2pm, 4pm, 6pm, 8pm, 10pm)${RESET}"
     echo -e "${CYAN}📅 Cron job added successfully${RESET}"
@@ -1241,60 +1015,35 @@ function setup_auto_restart() {
 function remove_auto_restart() {
     sudo crontab -l 2>/dev/null | grep -v "nexus-node-fixed.sh --auto-restart" | sudo crontab - 2>/dev/null || true
     
-    # Log clean removal message
-    log_clean "Auto-restart cron job removed"
     
     echo -e "${YELLOW}Auto-restart cron job removed${RESET}"
 }
 
-# === Clean Log Functions ===
-function log_clean() {
-    echo "$(date): $1" >> "${LOG_DIR}/auto-restart.log"
-}
-
-function log_node_clean() {
-    local log_file="$1"
-    echo "$(date): $2" >> "$log_file"
-    
-    # No immediate trimming - let logs accumulate
-    # Trimming will happen every 5 minutes via background process
-}
 
 # === Auto Restart Function (for cron) ===
 function auto_restart_nodes() {
     local all_nodes=($(get_all_nodes))
     if [ ${#all_nodes[@]} -eq 0 ]; then
-        log_clean "No nodes found for auto-restart"
         return
     fi
     
-    log_clean "Starting auto-restart of ${#all_nodes[@]} nodes"
-    
     for timestamp in "${all_nodes[@]}"; do
         local container="${BASE_CONTAINER_NAME}-${timestamp}"
-        log_clean "Restarting container: $timestamp"
         
         # Stop the container gracefully
         docker stop "$container" 2>/dev/null || true
         sleep 2
         
         # Start the container again
-        if docker start "$container" 2>/dev/null; then
-            log_clean "Container $timestamp restarted successfully"
-        else
-            log_clean "Failed to restart container $timestamp"
-        fi
+        docker start "$container" 2>/dev/null || true
         
         sleep 1
     done
-    
-    log_clean "Auto-restart completed"
 }
 
 # === Wallet Address Management ===
 function save_wallet_address() {
     local wallet_address="$1"
-    mkdir -p "$LOG_DIR"
     echo "$wallet_address" > "$WALLET_SAVE_FILE"
     chmod 600 "$WALLET_SAVE_FILE"  # Secure permissions
 }
@@ -1369,8 +1118,6 @@ function check_root() {
 
 # === Handle Command Line Arguments ===
 if [ "$1" = "--auto-restart" ]; then
-    # Create log directory if it doesn't exist
-    mkdir -p "$LOG_DIR"
     auto_restart_nodes
     exit 0
 fi
@@ -1383,20 +1130,17 @@ while true; do
     echo -e "${GREEN} 1.${RESET} ➤ Install & Run Node"
     echo -e "${GREEN} 2.${RESET} 📊 View All Node Status"
     echo -e "${GREEN} 3.${RESET} ❌ Remove Specific Node"
-    echo -e "${GREEN} 4.${RESET} 🧾 View Node Logs"
+    echo -e "${GREEN} 4.${RESET} 🧾 View Real-Time Node Logs"
     echo -e "${GREEN} 5.${RESET} 💥 Remove All Nodes"
     echo -e "${GREEN} 6.${RESET} 🔄 Restart All Nodes"
     echo -e "${GREEN} 7.${RESET} 🆙 Update All Nodes (Latest Nexus CLI)"
-    echo -e "${GREEN} 8.${RESET} 🗑️  Clear All Logs"
-    echo -e "${GREEN} 9.${RESET} ⏰ Setup Auto-Restart (Every 2 Hours)"
-    echo -e "${GREEN}10.${RESET} 🚫 Remove Auto-Restart"
+    echo -e "${GREEN} 8.${RESET} ⏰ Setup Auto-Restart (Every 2 Hours)"
+    echo -e "${GREEN} 9.${RESET} 🚫 Remove Auto-Restart"
+    echo -e "${GREEN}10.${RESET} 🚪 Exit Script"
     echo -e "${GREEN} ${RESET} 🚪 ~CTRL + C for Exit~"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     
     read -rp "Choose an option (1–10): " choice
-    
-    # Debug: Show what was actually received
-    echo "DEBUG: Received input: '$choice'" >&2
     
     case $choice in
         1)
@@ -1450,18 +1194,20 @@ while true; do
         5) uninstall_all_nodes ;;
         6) restart_all_nodes ;;
         7) update_all_nodes ;;
-        8) clear_all_logs ;;
-        9) 
+        8) 
             check_cron
             setup_auto_restart
             read -p "Press enter..."
             ;;
-        10) 
+        9) 
             remove_auto_restart
             read -p "Press enter..."
             ;;
+        10) 
+            echo -e "${CYAN}👋 Goodbye!${RESET}"
+            exit 0
+            ;;
         *) 
-            echo "DEBUG: Invalid option received: '$choice'" >&2
             echo "Invalid option. Please enter a number from 1 to 10."
             read -p "Press enter..." 
             ;;
