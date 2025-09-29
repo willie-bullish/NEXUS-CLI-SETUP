@@ -372,7 +372,7 @@ fi
 tail -f /root/nexus.log
 EOF
 
-    docker build -t "$IMAGE_NAME_EXISTING" .
+    docker build --no-cache -t "$IMAGE_NAME_EXISTING" .
     cd - > /dev/null
     rm -rf "$WORKDIR"
 }
@@ -498,7 +498,7 @@ fi
 tail -f /root/nexus.log
 EOF
 
-    docker build -t "$IMAGE_NAME" .
+    docker build --no-cache -t "$IMAGE_NAME" .
     cd - > /dev/null
     rm -rf "$WORKDIR"
 }
