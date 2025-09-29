@@ -308,16 +308,21 @@ ENV LC_CTYPE=en_US.UTF-8
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
 
+# Update package list (cached layer)
+RUN apt-get update
+
 # Install system packages (cached layer)
-RUN apt-get update && apt-get install -y \\
+RUN apt-get install -y \\
     curl \\
     screen \\
     bash \\
     locales \\
-    && rm -rf /var/lib/apt/lists/* \\
-    && locale-gen en_US.UTF-8
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Nexus CLI and update PATH
+# Generate locales (cached layer)
+RUN locale-gen en_US.UTF-8
+
+# Install Nexus CLI and update PATH (no cache - always fresh)
 RUN curl https://cli.nexus.xyz/ | sh \\
     && echo 'export PATH="/root/.nexus/bin:\$PATH"' >> /root/.bashrc \\
     && ln -sf /root/.nexus/bin/nexus-cli /usr/local/bin/nexus-cli
@@ -405,16 +410,21 @@ ENV LC_CTYPE=en_US.UTF-8
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
 
+# Update package list (cached layer)
+RUN apt-get update
+
 # Install system packages (cached layer)
-RUN apt-get update && apt-get install -y \\
+RUN apt-get install -y \\
     curl \\
     screen \\
     bash \\
     locales \\
-    && rm -rf /var/lib/apt/lists/* \\
-    && locale-gen en_US.UTF-8
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Nexus CLI and update PATH
+# Generate locales (cached layer)
+RUN locale-gen en_US.UTF-8
+
+# Install Nexus CLI and update PATH (no cache - always fresh)
 RUN curl https://cli.nexus.xyz/ | sh \\
     && echo 'export PATH="/root/.nexus/bin:\$PATH"' >> /root/.bashrc \\
     && ln -sf /root/.nexus/bin/nexus-cli /usr/local/bin/nexus-cli
