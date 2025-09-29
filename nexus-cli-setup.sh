@@ -1232,7 +1232,7 @@ while true; do
     echo -e "${GREEN} 8.${RESET} ⏰ Setup Auto-Restart (Every 2 Hours)"
     echo -e "${GREEN} 9.${RESET} 🚫 Remove Auto-Restart"
     echo -e "${GREEN}10.${RESET} 🚪 Exit Script"
-    echo -e "${GREEN} ${RESET} 🚪 ~CTRL + C for Exit~"
+    echo -e "${GREEN} ${RESET} NOTE: To close the log screen you opened with option 4, use CTRL A + D"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     
     read -rp "Choose an option (1–10): " choice
