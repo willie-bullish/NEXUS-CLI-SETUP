@@ -317,8 +317,8 @@ RUN apt-get update && apt-get install -y \\
     && rm -rf /var/lib/apt/lists/* \\
     && locale-gen en_US.UTF-8
 
-# Install Nexus CLI and update PATH (no cache)
-RUN --no-cache curl https://cli.nexus.xyz/ | sh \\
+# Install Nexus CLI and update PATH
+RUN curl https://cli.nexus.xyz/ | sh \\
     && echo 'export PATH="/root/.nexus/bin:\$PATH"' >> /root/.bashrc \\
     && ln -sf /root/.nexus/bin/nexus-cli /usr/local/bin/nexus-cli
 
@@ -414,8 +414,8 @@ RUN apt-get update && apt-get install -y \\
     && rm -rf /var/lib/apt/lists/* \\
     && locale-gen en_US.UTF-8
 
-# Install Nexus CLI and update PATH (no cache)
-RUN --no-cache curl https://cli.nexus.xyz/ | sh \\
+# Install Nexus CLI and update PATH
+RUN curl https://cli.nexus.xyz/ | sh \\
     && echo 'export PATH="/root/.nexus/bin:\$PATH"' >> /root/.bashrc \\
     && ln -sf /root/.nexus/bin/nexus-cli /usr/local/bin/nexus-cli
 
