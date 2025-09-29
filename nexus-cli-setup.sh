@@ -349,7 +349,7 @@ screen -S nexus -X quit >/dev/null 2>&1 || true
 # Start the node with existing ID
 echo "🎯 Starting Nexus node with existing ID: \$EXISTING_NODE_ID"
 echo "⏳ Initializing node (this may take 15-30 seconds)..."
-screen -dmS nexus bash -c "nexus-cli start --node-id \$EXISTING_NODE_ID 2>&1 | tee -a /root/nexus.log"
+screen -dmS nexus bash -c "nexus-cli start --node-id \$EXISTING_NODE_ID"
 
 # Wait for node to start
 echo "📋 Waiting for node initialization..."
@@ -362,12 +362,14 @@ if screen -list | grep -q "nexus"; then
     echo "💼 Wallet: \$WALLET_ADDRESS"
 else
     echo "❌ Failed to start the node"
-    cat /root/nexus.log
+    echo "Check container logs for details"
     exit 1
 fi
 
-# Follow the logs
-tail -f /root/nexus.log
+# Keep container running
+while true; do
+    sleep 60
+done
 EOF
 
     docker build --no-cache -t "$IMAGE_NAME_EXISTING" .
@@ -475,7 +477,7 @@ screen -S nexus -X quit >/dev/null 2>&1 || true
 # Start the node with proper logging
 echo "🎯 Starting Nexus node with ID: \$NODE_ID"
 echo "⏳ Initializing node (this may take 15-30 seconds)..."
-screen -dmS nexus bash -c "nexus-cli start 2>&1 | tee -a /root/nexus.log"
+screen -dmS nexus bash -c "nexus-cli start"
 
 # Wait for node to start
 echo "📋 Waiting for node initialization..."
@@ -488,12 +490,14 @@ if screen -list | grep -q "nexus"; then
     echo "💼 Wallet: \$WALLET_ADDRESS"
 else
     echo "❌ Failed to start the node"
-    cat /root/nexus.log
+    echo "Check container logs for details"
     exit 1
 fi
 
-# Follow the logs
-tail -f /root/nexus.log
+# Keep container running
+while true; do
+    sleep 60
+done
 EOF
 
     docker build --no-cache -t "$IMAGE_NAME" .
@@ -682,7 +686,7 @@ function get_all_nodes() {
         return 1
     fi
     
-    # Get container names without complex piping
+    # Get only RUNNING container names
     local containers=()
     while IFS= read -r container_name; do
         if [[ "$container_name" =~ ^${BASE_CONTAINER_NAME}- ]]; then
@@ -690,7 +694,7 @@ function get_all_nodes() {
             local timestamp="${container_name#${BASE_CONTAINER_NAME}-}"
             containers+=("$timestamp")
         fi
-    done < <(docker ps -a --format "{{.Names}}" 2>/dev/null)
+    done < <(docker ps --format "{{.Names}}" 2>/dev/null)
     
     # Output the timestamps
     for container in "${containers[@]}"; do
@@ -773,6 +777,39 @@ function list_nodes() {
     read -p "Press enter to return to menu..."
 }
 
+# === Container Log Management ===
+function clear_container_logs() {
+    local container_name="$1"
+    # For running containers, clear logs by truncating
+    if docker inspect -f '{{.State.Status}}' "$container_name" 2>/dev/null | grep -q "running"; then
+        docker exec "$container_name" sh -c "echo '' > /proc/1/fd/1" 2>/dev/null || true
+    fi
+    # Alternative method: truncate the container's log file
+    docker logs "$container_name" > /dev/null 2>&1 || true
+}
+
+function clear_stopped_container_logs() {
+    local container_name="$1"
+    # For stopped containers, we'll remove them completely to clear logs
+    if ! docker inspect -f '{{.State.Status}}' "$container_name" 2>/dev/null | grep -q "running"; then
+        # Container is stopped, remove it completely to clear logs
+        docker rm -f "$container_name" 2>/dev/null || true
+    fi
+}
+
+function cleanup_stopped_containers() {
+    # Clean up any stopped nexus containers to clear their logs
+    local stopped_containers=()
+    while IFS= read -r container_name; do
+        if [[ "$container_name" =~ ^${BASE_CONTAINER_NAME}- ]]; then
+            stopped_containers+=("$container_name")
+        fi
+    done < <(docker ps -a --filter "status=exited" --format "{{.Names}}" 2>/dev/null)
+    
+    for container in "${stopped_containers[@]}"; do
+        docker rm -f "$container" 2>/dev/null || true
+    done
+}
 
 # === View Node Logs ===
 function view_logs() {
@@ -782,15 +819,11 @@ function view_logs() {
         read -p "Press enter..."
         return
     fi
-    echo "Select a node to view real-time logs:"
+    echo "Select a running node to view real-time logs:"
     for i in "${!all_nodes[@]}"; do
         local timestamp=${all_nodes[$i]}
         local container="${BASE_CONTAINER_NAME}-${timestamp}"
-        local status="Unknown"
-        if docker inspect "$container" &>/dev/null; then
-            status=$(docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null)
-        fi
-        echo "$((i+1)). Container: $timestamp (Status: $status)"
+        echo "$((i+1)). Container: $timestamp"
     done
     read -rp "Number: " choice
     if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice > 0 && choice <= ${#all_nodes[@]} )); then
@@ -803,17 +836,10 @@ function view_logs() {
         echo -e "${CYAN}Press Ctrl+C to stop viewing logs and return to menu${RESET}"
         echo "--------------------------------------------------------------"
         
-        # Check if container is running
-        if docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null | grep -q "running"; then
-            echo -e "${GREEN}📋 Showing live logs from running container...${RESET}"
-            echo ""
-            # Show real-time logs
-            docker logs -f "$container" 2>&1
-        else
-            echo -e "${RED}❌ Container is not running${RESET}"
-            echo -e "${CYAN}📋 Last 20 lines from container logs:${RESET}"
-            docker logs "$container" 2>&1 | tail -20 | sed 's/^/  /'
-        fi
+        # Show real-time logs (container is guaranteed to be running)
+        echo -e "${GREEN}📋 Showing live logs from running container...${RESET}"
+        echo ""
+        docker logs -f "$container" 2>&1
         echo "--------------------------------------------------------------"
     fi
     read -p "Press enter..."
@@ -894,6 +920,9 @@ function restart_all_nodes() {
         # Stop the container gracefully
         docker stop "$container" 2>/dev/null || true
         sleep 2
+        
+        # Clear logs from stopped container
+        clear_stopped_container_logs "$container"
         
         # Start the container again
         docker start "$container" 2>/dev/null || {
@@ -1022,20 +1051,41 @@ function remove_auto_restart() {
 
 # === Auto Restart Function (for cron) ===
 function auto_restart_nodes() {
-    local all_nodes=($(get_all_nodes))
-    if [ ${#all_nodes[@]} -eq 0 ]; then
+    # Get all containers (including stopped ones) for auto-restart
+    local all_containers=()
+    while IFS= read -r container_name; do
+        if [[ "$container_name" =~ ^${BASE_CONTAINER_NAME}- ]]; then
+            local timestamp="${container_name#${BASE_CONTAINER_NAME}-}"
+            all_containers+=("$timestamp")
+        fi
+    done < <(docker ps -a --format "{{.Names}}" 2>/dev/null)
+    
+    if [ ${#all_containers[@]} -eq 0 ]; then
         return
     fi
     
-    for timestamp in "${all_nodes[@]}"; do
+    for timestamp in "${all_containers[@]}"; do
         local container="${BASE_CONTAINER_NAME}-${timestamp}"
         
         # Stop the container gracefully
         docker stop "$container" 2>/dev/null || true
         sleep 2
         
-        # Start the container again
-        docker start "$container" 2>/dev/null || true
+        # For auto-restart, we'll clear logs by recreating the container
+        # Get environment variables from the container
+        local env_vars=$(docker inspect "$container" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep -v '^PATH=' | head -10 | sed 's/^/-e /' | tr '\n' ' ')
+        local image_name=$(docker inspect "$container" --format '{{.Config.Image}}' 2>/dev/null)
+        
+        # Remove old container
+        docker rm -f "$container" 2>/dev/null || true
+        
+        # Recreate with same name and fresh logs
+        if [ -n "$image_name" ] && [ "$image_name" != "null" ]; then
+            docker run -d --name "$container" --cpus=4 $env_vars "$image_name" 2>/dev/null || true
+        else
+            # Fallback: just start the existing container (if it still exists)
+            docker start "$container" 2>/dev/null || true
+        fi
         
         sleep 1
     done
@@ -1126,6 +1176,8 @@ fi
 check_root
 
 while true; do
+    # Clean up any stopped containers before showing menu
+    cleanup_stopped_containers
     show_header
     echo -e "${GREEN} 1.${RESET} ➤ Install & Run Node"
     echo -e "${GREEN} 2.${RESET} 📊 View All Node Status"
