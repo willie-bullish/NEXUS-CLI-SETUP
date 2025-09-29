@@ -49,6 +49,17 @@ function show_header() {
 function ensure_docker_available() {
     # Quick check if docker command is available
     if command -v docker >/dev/null 2>&1; then
+        # Check if Docker is running and accessible
+        if ! docker info >/dev/null 2>&1; then
+            # Check if it's a permission issue
+            if docker info 2>&1 | grep -q "permission denied"; then
+                echo -e "${RED}❌ Docker permission denied!${RESET}"
+                echo -e "${YELLOW}🔧 Your user needs to be added to the docker group.${RESET}"
+                echo -e "${CYAN}📋 Run: sudo usermod -aG docker $USER${RESET}"
+                echo -e "${CYAN}💡 Then log out and log back in, or run: newgrp docker${RESET}"
+                return 1
+            fi
+        fi
         return 0
     fi
     
@@ -72,6 +83,38 @@ function ensure_docker_available() {
     # If we get here, Docker is not found
     echo -e "${RED}❌ Docker command not found. Please ensure Docker is running.${RESET}"
     return 1
+}
+
+# === Check Docker Permissions ===
+function check_docker_permissions() {
+    # Check if Docker is installed but user doesn't have permission
+    if command -v docker >/dev/null 2>&1; then
+        if ! docker info >/dev/null 2>&1; then
+            # Check if it's a permission issue
+            if docker info 2>&1 | grep -q "permission denied"; then
+                echo -e "${RED}❌ Docker permission denied!${RESET}"
+                echo -e "${YELLOW}🔧 Your user needs to be added to the docker group.${RESET}"
+                echo -e "${CYAN}📋 Running: sudo usermod -aG docker $USER${RESET}"
+                
+                # Add user to docker group
+                sudo usermod -aG docker $USER
+                
+                echo -e "${GREEN}✅ User added to docker group${RESET}"
+                echo -e "${CYAN}🔄 Attempting to apply group changes without logout...${RESET}"
+                
+                # Try to apply group changes without logout using newgrp
+                if command -v newgrp >/dev/null 2>&1; then
+                    echo -e "${CYAN}📋 Running: newgrp docker${RESET}"
+                    exec newgrp docker "$0" "$@"
+                else
+                    echo -e "${YELLOW}⚠️  newgrp not available. Please log out and log back in.${RESET}"
+                    echo -e "${CYAN}📋 After logging back in, run this script again.${RESET}"
+                    read -p "Press enter to continue..."
+                    exit 0
+                fi
+            fi
+        fi
+    fi
 }
 
 # === Check Docker Installation ===
@@ -254,6 +297,25 @@ function check_docker() {
         # Add current user to docker group
         sudo usermod -aG docker $USER
         echo -e "${YELLOW}Please log out and log back in for Docker permissions to take effect.${RESET}"
+        
+        # Check if this is a fresh Docker installation
+        if ! groups $USER | grep -q docker; then
+            echo -e "${CYAN}🔧 Fresh Docker installation detected!${RESET}"
+            echo -e "${YELLOW}⚠️  You need to log out and log back in for Docker permissions to take effect.${RESET}"
+            echo -e "${CYAN}💡 Alternatively, you can run: newgrp docker${RESET}"
+            echo -e "${CYAN}🔄 Attempting to apply group changes without logout...${RESET}"
+            
+            # Try to apply group changes without logout using newgrp
+            if command -v newgrp >/dev/null 2>&1; then
+                echo -e "${CYAN}📋 Running: newgrp docker${RESET}"
+                exec newgrp docker "$0" "$@"
+            else
+                echo -e "${YELLOW}⚠️  newgrp not available. Please log out and log back in.${RESET}"
+                echo -e "${CYAN}📋 After logging back in, run this script again.${RESET}"
+                read -p "Press enter to continue..."
+                exit 0
+            fi
+        fi
         fi
     else
         # Docker is found, check if it's running
@@ -1229,6 +1291,9 @@ fi
 
 # === MAIN MENU ===
 check_root
+
+# Check Docker permissions before showing menu
+check_docker_permissions
 
 while true; do
     # Clean up any stopped containers before showing menu
