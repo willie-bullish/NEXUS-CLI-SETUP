@@ -873,8 +873,8 @@ function view_logs() {
             echo "--------------------------------------------------------------"
             sleep 2
             
-            # Attach to the actual screen session
-            docker exec -it "$container" screen -r "$screen_name"
+            # Force attach to the screen session (even if already attached)
+            docker exec -it "$container" screen -d -r "$screen_name"
             
             # Clear screen after detaching
             clear
