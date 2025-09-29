@@ -350,7 +350,7 @@ screen -S nexus -X quit >/dev/null 2>&1 || true
 echo "🎯 Starting Nexus node with existing ID: \$EXISTING_NODE_ID"
 
 # Start the Nexus node in screen session to keep container running
-screen -dmS nexus bash -c "nexus-cli start --node-id \$EXISTING_NODE_ID" 2>/dev/null
+screen -dmS nexus bash -c "nexus-cli start --node-id \$EXISTING_NODE_ID"
 
 # Wait for node to start
 sleep 5
@@ -362,6 +362,10 @@ if screen -list | grep -q "nexus"; then
     echo "💼 Wallet: \$WALLET_ADDRESS"
 else
     echo "❌ Failed to start the node"
+    echo "Debug: Checking screen session status..."
+    screen -list
+    echo "Debug: Trying to start nexus-cli directly to see error..."
+    nexus-cli start --node-id \$EXISTING_NODE_ID || echo "Direct start failed"
     exit 1
 fi
 
@@ -474,7 +478,7 @@ echo "✅ Node registered successfully with ID: \$NODE_ID"
 echo "🎯 Starting Nexus node with ID: \$NODE_ID"
 
 # Start the Nexus node in screen session to keep container running
-screen -dmS nexus bash -c "nexus-cli start" 2>/dev/null
+screen -dmS nexus bash -c "nexus-cli start"
 
 # Wait for node to start
 sleep 5
@@ -486,6 +490,10 @@ if screen -list | grep -q "nexus"; then
     echo "💼 Wallet: \$WALLET_ADDRESS"
 else
     echo "❌ Failed to start the node"
+    echo "Debug: Checking screen session status..."
+    screen -list
+    echo "Debug: Trying to start nexus-cli directly to see error..."
+    nexus-cli start || echo "Direct start failed"
     exit 1
 fi
 
