@@ -861,18 +861,26 @@ function view_logs() {
         local node_info=$(get_node_info "$container")
         local node_id=${node_info%%\|*}
         
-        # Debug screen session
-        echo -e "${YELLOW}Debugging screen session for container: $selected (Node ID: $node_id)${RESET}"
-        echo "Checking if screen is installed..."
-        docker exec "$container" which screen
-        echo "Checking screen sessions..."
-        docker exec "$container" screen -list
-        echo "Checking if nexus session exists..."
-        docker exec "$container" screen -list | grep nexus || echo "No nexus session found"
-        echo "Trying to attach anyway..."
+        # Get the actual screen session name (with number prefix)
+        echo -e "${YELLOW}Attaching to live Nexus dashboard for container: $selected (Node ID: $node_id)${RESET}"
         
-        # Try to attach to the screen session
-        docker exec -it "$container" screen -r nexus
+        # Get the actual screen session name
+        local screen_name=$(docker exec "$container" screen -list | grep nexus | awk '{print $1}' | head -1)
+        
+        if [ -n "$screen_name" ]; then
+            echo -e "${GREEN}✅ Found screen session: $screen_name${RESET}"
+            echo -e "${CYAN}Press Ctrl+A then D to detach and return to menu${RESET}"
+            echo "--------------------------------------------------------------"
+            sleep 2
+            
+            # Attach to the actual screen session
+            docker exec -it "$container" screen -r "$screen_name"
+            
+            # Clear screen after detaching
+            clear
+        else
+            echo -e "${RED}❌ No nexus screen session found${RESET}"
+        fi
     fi
     read -p "Press enter..."
 }
