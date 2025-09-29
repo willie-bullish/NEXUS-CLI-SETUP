@@ -861,33 +861,17 @@ function view_logs() {
         local node_info=$(get_node_info "$container")
         local node_id=${node_info%%\|*}
         
-        echo -e "${YELLOW}Real-time logs for container: $selected (Node ID: $node_id)${RESET}"
-        echo -e "${CYAN}Press Enter to stop viewing logs and return to menu${RESET}"
+        # Attach directly to the screen session
+        echo -e "${YELLOW}Attaching to live Nexus dashboard for container: $selected (Node ID: $node_id)${RESET}"
+        echo -e "${CYAN}Press Ctrl+A then D to detach and return to menu${RESET}"
         echo "--------------------------------------------------------------"
+        sleep 2
         
-        # Show real-time logs with Enter to exit
-        echo -e "${GREEN}📋 Showing live logs from running container...${RESET}"
-        echo ""
+        # Attach to the screen session directly
+        docker exec -it "$container" screen -r nexus
         
-        # Clear screen and show initial logs
+        # Clear screen after detaching
         clear
-        echo -e "${YELLOW}Real-time logs for container: $selected (Node ID: $node_id)${RESET}"
-        echo -e "${CYAN}Press Enter to stop viewing logs and return to menu${RESET}"
-        echo "--------------------------------------------------------------"
-        
-                # Attach directly to the screen session
-                echo -e "${YELLOW}Attaching to live Nexus dashboard for container: $selected (Node ID: $node_id)${RESET}"
-                echo -e "${CYAN}Press Ctrl+A then D to detach and return to menu${RESET}"
-                echo "--------------------------------------------------------------"
-                sleep 2
-                
-                # Attach to the screen session directly
-                docker exec -it "$container" screen -r nexus
-                
-                # Clear screen after detaching
-                clear
-        
-        echo "--------------------------------------------------------------"
     fi
     read -p "Press enter..."
 }
