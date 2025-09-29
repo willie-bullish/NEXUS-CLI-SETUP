@@ -354,7 +354,7 @@ echo "🎯 Starting Nexus node with existing ID: \$EXISTING_NODE_ID"
 
 # Start the Nexus node in screen session to keep container running
 echo "🔧 Starting screen session..."
-screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start --node-id \$EXISTING_NODE_ID 2>&1 | tee /proc/1/fd/1; echo 'nexus-cli exited with code:' \$?"
+screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start --node-id \$EXISTING_NODE_ID; echo 'nexus-cli exited with code:' \$?"
 
 # Wait for node to start
 sleep 8
@@ -486,7 +486,7 @@ echo "🎯 Starting Nexus node with ID: \$NODE_ID"
 
 # Start the Nexus node in screen session to keep container running
 echo "🔧 Starting screen session..."
-screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start 2>&1 | tee /proc/1/fd/1; echo 'nexus-cli exited with code:' \$?"
+screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start; echo 'nexus-cli exited with code:' \$?"
 
 # Wait for node to start
 sleep 8
@@ -872,8 +872,15 @@ function view_logs() {
                 echo -e "${CYAN}Press Enter to stop viewing logs and return to menu${RESET}"
                 echo "--------------------------------------------------------------"
                 
-                        # Screen logs are now captured in Docker logs via tee /proc/1/fd/1
-                        docker logs --tail 20 "$container" 2>&1
+                        # Get live screen session content directly
+                        docker exec "$container" screen -S nexus -X hardcopy /tmp/nexus_dashboard.txt 2>/dev/null
+                        if docker exec "$container" test -f /tmp/nexus_dashboard.txt 2>/dev/null; then
+                            # Show live screen content (actual running node dashboard)
+                            docker exec "$container" cat /tmp/nexus_dashboard.txt 2>/dev/null | tr -d '\0'
+                        else
+                            # Fallback to container logs if screen not available
+                            docker logs --tail 20 "$container" 2>&1
+                        fi
                 
                 echo "--------------------------------------------------------------"
                 sleep 3
