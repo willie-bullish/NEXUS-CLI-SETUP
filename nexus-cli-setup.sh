@@ -350,10 +350,11 @@ screen -S nexus -X quit >/dev/null 2>&1 || true
 echo "🎯 Starting Nexus node with existing ID: \$EXISTING_NODE_ID"
 
 # Start the Nexus node in screen session to keep container running
-screen -dmS nexus bash -c "nexus-cli start --node-id \$EXISTING_NODE_ID"
+echo "🔧 Starting screen session..."
+screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start --node-id \$EXISTING_NODE_ID; echo 'nexus-cli exited with code:' \$?"
 
 # Wait for node to start
-sleep 5
+sleep 8
 
 # Check if screen session is running
 if screen -list | grep -q "nexus"; then
@@ -478,10 +479,11 @@ echo "✅ Node registered successfully with ID: \$NODE_ID"
 echo "🎯 Starting Nexus node with ID: \$NODE_ID"
 
 # Start the Nexus node in screen session to keep container running
-screen -dmS nexus bash -c "nexus-cli start"
+echo "🔧 Starting screen session..."
+screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start; echo 'nexus-cli exited with code:' \$?"
 
 # Wait for node to start
-sleep 5
+sleep 8
 
 # Check if screen session is running
 if screen -list | grep -q "nexus"; then
