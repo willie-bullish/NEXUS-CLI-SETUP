@@ -354,7 +354,7 @@ echo "🎯 Starting Nexus node with existing ID: \$EXISTING_NODE_ID"
 
 # Start the Nexus node in screen session to keep container running
 echo "🔧 Starting screen session..."
-screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start --node-id \$EXISTING_NODE_ID; echo 'nexus-cli exited with code:' \$?"
+screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start --node-id \$EXISTING_NODE_ID 2>&1 | tee /proc/1/fd/1; echo 'nexus-cli exited with code:' \$?"
 
 # Wait for node to start
 sleep 8
@@ -486,7 +486,7 @@ echo "🎯 Starting Nexus node with ID: \$NODE_ID"
 
 # Start the Nexus node in screen session to keep container running
 echo "🔧 Starting screen session..."
-screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start; echo 'nexus-cli exited with code:' \$?"
+screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start 2>&1 | tee /proc/1/fd/1; echo 'nexus-cli exited with code:' \$?"
 
 # Wait for node to start
 sleep 8
@@ -872,8 +872,8 @@ function view_logs() {
                 echo -e "${CYAN}Press Enter to stop viewing logs and return to menu${RESET}"
                 echo "--------------------------------------------------------------"
                 
-                        # Test fallback method first - use Docker container logs only
-                        docker logs --tail 50 "$container" 2>&1
+                        # Screen logs are now captured in Docker logs via tee /proc/1/fd/1
+                        docker logs --tail 20 "$container" 2>&1
                 
                 echo "--------------------------------------------------------------"
                 sleep 3
