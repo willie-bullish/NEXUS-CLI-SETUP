@@ -1227,14 +1227,14 @@ while true; do
     echo -e "${GREEN} 1.${RESET} ➤ Install & Run Node"
     echo -e "${GREEN} 2.${RESET} 📊 View All Node Status"
     echo -e "${GREEN} 3.${RESET} ❌ Remove Specific Node"
-    echo -e "${GREEN} 4.${RESET} 🧾 View Real-Time Node Logs"
+    echo -e "${GREEN} 4.${RESET} 🧾 View NEXUS-NODE Dashboard"
+    echo -e "${GREEN} ${RESET} NOTE: To close the dashboard Use CTRL A + D. DONT PRESS "Q""
     echo -e "${GREEN} 5.${RESET} 💥 Remove All Nodes"
     echo -e "${GREEN} 6.${RESET} 🔄 Restart All Nodes"
     echo -e "${GREEN} 7.${RESET} 🆙 Update All Nodes (Latest Nexus CLI)"
     echo -e "${GREEN} 8.${RESET} ⏰ Setup Auto-Restart (Every 2 Hours)"
     echo -e "${GREEN} 9.${RESET} 🚫 Remove Auto-Restart"
     echo -e "${GREEN}10.${RESET} 🚪 Exit Script"
-    echo -e "${GREEN} ${RESET} NOTE: To close the log screen you opened with option 4, use CTRL A + D"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     
     read -rp "Choose an option (1–10): " choice
