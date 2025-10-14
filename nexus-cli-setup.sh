@@ -426,7 +426,7 @@ echo "🎯 Starting Nexus node with existing ID: \$EXISTING_NODE_ID"
 
 # Start the Nexus node in screen session to keep container running
 echo "🔧 Starting screen session..."
-screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start --node-id \$EXISTING_NODE_ID --max-difficulty EXTRA_LARGE; echo 'nexus-cli exited with code:' \$?"
+screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start --node-id \$EXISTING_NODE_ID  --max-threads 16 --max-difficulty extra_large_5; echo 'nexus-cli exited with code:' \$?"
 
 # Wait for node to start
 sleep 8
@@ -568,7 +568,7 @@ echo "🎯 Starting Nexus node with ID: \$NODE_ID"
 
 # Start the Nexus node in screen session to keep container running
 echo "🔧 Starting screen session..."
-screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start --max-difficulty EXTRA_LARGE; echo 'nexus-cli exited with code:' \$?"
+screen -dmS nexus bash -c "echo 'Starting nexus-cli...' && nexus-cli start  --max-threads 16 --max-difficulty extra_large_5; echo 'nexus-cli exited with code:' \$?"
 
 # Wait for node to start
 sleep 8
